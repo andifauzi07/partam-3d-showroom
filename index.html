@@ -1,0 +1,1243 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Partam 3D Showroom & Direct-Engine — E-Commerce Interaktif 360°</title>
+  <meta name="description" content="Showcase teknologi 3D Interactive Showroom & Direct-Engine oleh Partam Tekno. Pengalaman belanja pakaian 360° interaktif pemotong komisi marketplace.">
+  
+  <script src="three.min.js"></script>
+  <script src="GLTFLoader.js"></script>
+  
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+
+  <style>
+    :root {
+      --bg-dark: #07090e;
+      --card-bg: rgba(13, 19, 31, 0.82);
+      --card-border: rgba(255, 255, 255, 0.1);
+      --cyan: #00f2fe;
+      --cyan-glow: rgba(0, 242, 254, 0.35);
+      --gold: #f59e0b;
+      --gold-glow: rgba(245, 158, 11, 0.35);
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      --red: #ef4444;
+      --green: #10b981;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
+    body {
+      background: var(--bg-dark);
+      color: var(--text-main);
+      font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+      overflow: hidden;
+      height: 100vh;
+      width: 100vw;
+    }
+
+    #webgl-canvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 1;
+      cursor: grab;
+    }
+    #webgl-canvas:active { cursor: grabbing; }
+
+    /* UI Overlay Layer */
+    .ui-layer {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 10;
+      pointer-events: none;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+    .clickable { pointer-events: auto; }
+
+    /* Top Bar */
+    .top-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 18px 28px;
+      background: linear-gradient(180deg, rgba(7, 9, 14, 0.95) 0%, rgba(7, 9, 14, 0.4) 75%, transparent 100%);
+      backdrop-filter: blur(8px);
+    }
+    .brand-group {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+    .brand-logo {
+      width: 38px;
+      height: 38px;
+      background: linear-gradient(135deg, #00f2fe 0%, #4facfe 100%);
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 800;
+      color: #07090e;
+      font-size: 20px;
+      box-shadow: 0 0 20px var(--cyan-glow);
+    }
+    .brand-title {
+      font-weight: 800;
+      font-size: 16px;
+      letter-spacing: 0.5px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .brand-badge {
+      font-size: 10px;
+      font-weight: 700;
+      padding: 3px 8px;
+      border-radius: 6px;
+      background: rgba(0, 242, 254, 0.12);
+      color: var(--cyan);
+      border: 1px solid rgba(0, 242, 254, 0.3);
+      font-family: 'JetBrains Mono', monospace;
+    }
+    .brand-sub {
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    .top-controls {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .btn-icon {
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid var(--card-border);
+      color: var(--text-main);
+      padding: 9px 14px;
+      border-radius: 10px;
+      font-size: 13px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      backdrop-filter: blur(10px);
+    }
+    .btn-icon:hover {
+      background: rgba(255, 255, 255, 0.12);
+      border-color: rgba(255, 255, 255, 0.25);
+    }
+    .btn-b2b {
+      background: linear-gradient(135deg, #00f2fe 0%, #0088cc 100%);
+      color: #07090e;
+      border: none;
+      font-weight: 700;
+      box-shadow: 0 4px 16px var(--cyan-glow);
+    }
+    .btn-b2b:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 6px 22px rgba(0, 242, 254, 0.5);
+    }
+
+    /* 3D Interaction Hints Center */
+    .center-hint-box {
+      align-self: center;
+      margin-bottom: 24px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+    }
+    .hint-pill {
+      background: rgba(13, 19, 31, 0.75);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      padding: 8px 18px;
+      border-radius: 30px;
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      backdrop-filter: blur(10px);
+      color: #e2e8f0;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+      transition: all 0.3s;
+    }
+    .hint-pill .pulse-dot {
+      width: 7px;
+      height: 7px;
+      background: var(--cyan);
+      border-radius: 50%;
+      box-shadow: 0 0 10px var(--cyan);
+      animation: pulse 1.6s infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.4; transform: scale(0.8); }
+    }
+
+    /* Bottom Carousel Rail Controller */
+    .bottom-bar {
+      padding: 20px 28px;
+      background: linear-gradient(0deg, rgba(7, 9, 14, 0.98) 0%, rgba(7, 9, 14, 0.6) 70%, transparent 100%);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 20px;
+      backdrop-filter: blur(8px);
+    }
+    .rail-selector {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      overflow-x: auto;
+      padding: 4px 2px;
+    }
+    .rail-card {
+      background: rgba(18, 26, 42, 0.65);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 14px;
+      padding: 10px 16px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      cursor: pointer;
+      transition: all 0.25s cubic-bezier(0.2, 0.8, 0.2, 1);
+      min-width: 220px;
+    }
+    .rail-card:hover {
+      background: rgba(26, 38, 62, 0.8);
+      border-color: rgba(255, 255, 255, 0.2);
+      transform: translateY(-2px);
+    }
+    .rail-card.active {
+      background: linear-gradient(135deg, rgba(0, 242, 254, 0.12) 0%, rgba(18, 26, 42, 0.9) 100%);
+      border-color: var(--cyan);
+      box-shadow: 0 0 18px var(--cyan-glow);
+    }
+    .rail-card-num {
+      width: 32px;
+      height: 32px;
+      background: rgba(255, 255, 255, 0.06);
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 800;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 14px;
+      color: var(--cyan);
+    }
+    .rail-card.active .rail-card-num {
+      background: var(--cyan);
+      color: #07090e;
+    }
+    .rail-card-info h4 {
+      font-size: 13px;
+      font-weight: 700;
+      margin-bottom: 2px;
+      white-space: nowrap;
+    }
+    .rail-card-info p {
+      font-size: 11px;
+      color: var(--text-muted);
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    .rail-nav-btn {
+      width: 44px;
+      height: 44px;
+      border-radius: 12px;
+      background: rgba(255, 255, 255, 0.07);
+      border: 1px solid var(--card-border);
+      color: white;
+      font-size: 18px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .rail-nav-btn:hover {
+      background: var(--cyan);
+      color: #07090e;
+      box-shadow: 0 0 14px var(--cyan-glow);
+    }
+
+    /* Right Side Product Sheet Drawer */
+    .product-drawer {
+      position: absolute;
+      right: 28px;
+      top: 90px;
+      bottom: 110px;
+      width: 380px;
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 20px;
+      backdrop-filter: blur(20px);
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6);
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      overflow-y: auto;
+      transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.4s ease;
+      z-index: 20;
+    }
+    .product-drawer.hidden {
+      transform: translateX(420px);
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .drawer-tag {
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--cyan);
+      background: rgba(0, 242, 254, 0.1);
+      border: 1px solid rgba(0, 242, 254, 0.25);
+      padding: 4px 10px;
+      border-radius: 6px;
+      display: inline-block;
+      margin-bottom: 8px;
+      font-family: 'JetBrains Mono', monospace;
+    }
+    .drawer-title {
+      font-size: 20px;
+      font-weight: 800;
+      line-height: 1.25;
+      margin-bottom: 6px;
+    }
+    .drawer-subtitle {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-bottom: 16px;
+    }
+
+    /* Price Card */
+    .price-box {
+      background: rgba(0, 0, 0, 0.35);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 14px;
+      padding: 14px;
+      margin-bottom: 16px;
+    }
+    .price-row {
+      display: flex;
+      align-items: baseline;
+      gap: 10px;
+      margin-bottom: 4px;
+    }
+    .price-main {
+      font-size: 24px;
+      font-weight: 800;
+      color: #38bdf8;
+      font-family: 'JetBrains Mono', monospace;
+    }
+    .price-strike {
+      font-size: 13px;
+      color: #64748b;
+      text-decoration: line-through;
+    }
+    .savings-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(16, 185, 129, 0.15);
+      color: #34d399;
+      border: 1px solid rgba(16, 185, 129, 0.3);
+      padding: 3px 8px;
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: 700;
+    }
+
+    /* Size Selector */
+    .selector-label {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 8px;
+      display: flex;
+      justify-content: space-between;
+    }
+    .size-grid {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 8px;
+      margin-bottom: 16px;
+    }
+    .size-btn {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--card-border);
+      color: var(--text-main);
+      padding: 10px 0;
+      border-radius: 8px;
+      font-weight: 700;
+      font-size: 13px;
+      cursor: pointer;
+      text-align: center;
+      transition: all 0.2s;
+    }
+    .size-btn:hover {
+      background: rgba(255, 255, 255, 0.12);
+      border-color: rgba(255, 255, 255, 0.25);
+    }
+    .size-btn.active {
+      background: var(--cyan);
+      color: #07090e;
+      border-color: var(--cyan);
+      box-shadow: 0 0 12px var(--cyan-glow);
+    }
+
+    /* P&L Direct-Engine Value Card */
+    .direct-engine-card {
+      background: linear-gradient(135deg, rgba(245, 158, 11, 0.08) 0%, rgba(13, 19, 31, 0.6) 100%);
+      border: 1px solid rgba(245, 158, 11, 0.25);
+      border-radius: 12px;
+      padding: 12px;
+      margin-bottom: 18px;
+      font-size: 11.5px;
+    }
+    .direct-engine-header {
+      font-weight: 800;
+      color: #fbbf24;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-bottom: 4px;
+    }
+    .direct-engine-desc {
+      color: #cbd5e1;
+      line-height: 1.4;
+    }
+
+    /* CTA Buttons in Drawer */
+    .action-stack {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .btn-wa {
+      background: linear-gradient(135deg, #22c55e 0%, #15803d 100%);
+      color: white;
+      border: none;
+      padding: 13px;
+      border-radius: 12px;
+      font-weight: 700;
+      font-size: 13.5px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      cursor: pointer;
+      box-shadow: 0 4px 14px rgba(34, 197, 94, 0.35);
+      transition: all 0.2s;
+    }
+    .btn-wa:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 6px 20px rgba(34, 197, 94, 0.5);
+    }
+    .btn-checkout {
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid var(--card-border);
+      color: white;
+      padding: 12px;
+      border-radius: 12px;
+      font-weight: 600;
+      font-size: 13px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .btn-checkout:hover {
+      background: rgba(255, 255, 255, 0.15);
+      border-color: rgba(255, 255, 255, 0.3);
+    }
+
+    /* Drawer Toggle Button */
+    .drawer-toggle-btn {
+      position: absolute;
+      right: 28px;
+      top: 90px;
+      width: 44px;
+      height: 44px;
+      border-radius: 12px;
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      color: white;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      z-index: 15;
+    }
+
+    /* B2B Agency Modal */
+    .modal-backdrop {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: rgba(0, 0, 0, 0.85);
+      backdrop-filter: blur(12px);
+      z-index: 100;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    .modal-backdrop.show { display: flex; }
+    .modal-card {
+      background: #0d131f;
+      border: 1px solid rgba(0, 242, 254, 0.3);
+      box-shadow: 0 0 50px rgba(0, 242, 254, 0.2);
+      border-radius: 24px;
+      max-width: 580px;
+      width: 100%;
+      padding: 32px;
+      position: relative;
+    }
+    .modal-close {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      background: rgba(255,255,255,0.08);
+      border: 1px solid var(--card-border);
+      color: white;
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+    }
+    .modal-heading {
+      font-size: 22px;
+      font-weight: 800;
+      margin-bottom: 8px;
+    }
+    .modal-sub {
+      font-size: 13px;
+      color: var(--text-muted);
+      line-height: 1.5;
+      margin-bottom: 24px;
+    }
+    .feature-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+      margin-bottom: 24px;
+    }
+    .feature-item {
+      background: rgba(255,255,255,0.03);
+      border: 1px solid rgba(255,255,255,0.06);
+      padding: 14px;
+      border-radius: 12px;
+    }
+    .feature-item h5 {
+      font-size: 13px;
+      color: var(--cyan);
+      margin-bottom: 4px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .feature-item p {
+      font-size: 11.5px;
+      color: #94a3b8;
+      line-height: 1.4;
+    }
+    .calc-slider-box {
+      background: rgba(0, 0, 0, 0.4);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 12px;
+      padding: 16px;
+      margin-bottom: 24px;
+    }
+    .calc-slider-label {
+      display: flex;
+      justify-content: space-between;
+      font-size: 12px;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+    .calc-slider {
+      width: 100%;
+      accent-color: var(--cyan);
+      cursor: pointer;
+      margin-bottom: 12px;
+    }
+    .calc-result-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-top: 8px;
+      border-top: 1px dashed rgba(255,255,255,0.1);
+      font-size: 12px;
+    }
+    .calc-savings-number {
+      font-size: 15px;
+      font-weight: 800;
+      color: #10b981;
+      white-space: nowrap;
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    /* Responsive */
+    @media (max-width: 900px) {
+      .product-drawer {
+        width: 320px;
+        right: 16px;
+        top: 80px;
+        bottom: 130px;
+        padding: 18px;
+      }
+      .top-bar { padding: 14px 18px; }
+      .bottom-bar { padding: 14px 18px; }
+      .feature-grid { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 640px) {
+      .product-drawer {
+        width: calc(100vw - 32px);
+        right: 16px;
+        top: 75px;
+        bottom: 100px;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- WebGL 3D Canvas -->
+  <canvas id="webgl-canvas"></canvas>
+
+  <!-- UI Overlay -->
+  <div class="ui-layer">
+    
+    <!-- Top Navigation Bar -->
+    <header class="top-bar">
+      <div class="brand-group clickable">
+        <div class="brand-logo">P</div>
+        <div>
+          <div class="brand-title">
+            PARTAM TEKNO
+            <span class="brand-badge">3D SHOWROOM</span>
+          </div>
+          <div class="brand-sub">Direct-Engine Interactive Apparel Showcase</div>
+        </div>
+      </div>
+
+      <div class="top-controls clickable">
+        <button class="btn-icon" id="btn-sound" title="Toggle Suara Efek">
+          <span id="sound-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/></svg></span> <span id="sound-text">Suara Aktif</span>
+        </button>
+        <button class="btn-icon" id="btn-reset-view" title="Kembalikan Sudut Pandang">
+          ↺ Reset 360°
+        </button>
+        <button class="btn-icon btn-b2b" id="btn-open-b2b">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg> Pasang di Brand Anda
+        </button>
+      </div>
+    </header>
+
+    <!-- Center Interaction Cue -->
+    <div class="center-hint-box clickable">
+      <div class="hint-pill" id="main-hint">
+        <div class="pulse-dot"></div>
+        <span id="hint-text">GESER REL ATAU KLIK BAJU UNTUK MEMERIKSA 360°</span>
+      </div>
+    </div>
+
+    <!-- Bottom Rail Carousel Selector -->
+    <footer class="bottom-bar">
+      <button class="rail-nav-btn clickable" id="rail-prev" title="Baju Sebelumnya">‹</button>
+      
+      <div class="rail-selector clickable" id="rail-container">
+        <!-- Rendered via JS -->
+      </div>
+
+      <button class="rail-nav-btn clickable" id="rail-next" title="Baju Berikutnya">›</button>
+    </footer>
+
+    <!-- Right Side E-Commerce Drawer -->
+    <aside class="product-drawer clickable" id="product-drawer">
+      <div>
+        <span class="drawer-tag" id="prod-tag">TIMNAS INDONESIA • MATCH PRO</span>
+        <h2 class="drawer-title" id="prod-title">Garuda Pro Home Kit — #6 Pratama Arhan</h2>
+        <p class="drawer-subtitle" id="prod-sub">Bahan Dry-Fit Milano • Sablon High-Density Polyflex • Official Match Grade</p>
+
+        <!-- Price Card -->
+        <div class="price-box">
+          <div class="price-row">
+            <span class="price-main" id="prod-price">Rp 249.000</span>
+            <span class="price-strike" id="prod-strike">Rp 299.000</span>
+          </div>
+          <div class="savings-badge">
+            ✓ Hemat Rp 50.000 dibanding Shopee
+          </div>
+        </div>
+
+        <!-- Size Picker -->
+        <div class="selector-label">
+          <span>Pilih Ukuran</span>
+          <span style="color: var(--cyan); cursor: pointer;" id="btn-size-guide">Panduan Size</span>
+        </div>
+        <div class="size-grid" id="size-container">
+          <button class="size-btn" data-size="S">S</button>
+          <button class="size-btn active" data-size="M">M</button>
+          <button class="size-btn" data-size="L">L</button>
+          <button class="size-btn" data-size="XL">XL</button>
+          <button class="size-btn" data-size="XXL">XXL</button>
+        </div>
+
+        <!-- Direct-Engine Value Wedge -->
+        <div class="direct-engine-card">
+          <div class="direct-engine-header">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg> Partam Direct-Engine
+          </div>
+          <div class="direct-engine-desc">
+            Pesanan dikirim langsung dari gudang resmi. Tanpa potongan komisi 18% marketplace, margin disalurkan kembali sebagai diskon pelanggan.
+          </div>
+        </div>
+      </div>
+
+      <!-- Action Buttons -->
+      <div class="action-stack">
+        <button class="btn-wa" id="btn-buy-wa">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12.04 2c-5.46 0-9.91 4.45-9.91 9.91 0 1.75.46 3.45 1.32 4.95L2.05 22l5.25-1.38c1.45.79 3.08 1.21 4.74 1.21 5.46 0 9.91-4.45 9.91-9.91 0-2.65-1.03-5.14-2.9-7.01A9.816 9.816 0 0 0 12.04 2m.01 1.67c2.2 0 4.26.86 5.82 2.42a8.225 8.225 0 0 1 2.41 5.83c0 4.54-3.7 8.24-8.24 8.24-1.48 0-2.93-.4-4.2-1.15l-.3-.18-3.12.82.83-3.04-.2-.31a8.196 8.196 0 0 1-1.26-4.38c0-4.54 3.7-8.24 8.24-8.24m4.52 11.66c-.25-.13-1.47-.72-1.7-.81-.23-.08-.39-.13-.56.13-.17.25-.64.81-.79.97-.14.17-.29.19-.54.06-.25-.13-1.06-.39-2.03-1.25-.75-.67-1.26-1.5-1.41-1.75-.14-.25-.02-.39.11-.51.11-.11.25-.29.37-.44.12-.14.17-.25.25-.42.08-.17.04-.31-.02-.44-.06-.13-.56-1.35-.77-1.85-.2-.49-.41-.42-.56-.43h-.48c-.17 0-.44.06-.67.31-.23.25-.88.86-.88 2.1s.9 2.44 1.03 2.61c.13.17 1.77 2.7 4.29 3.79.6.26 1.07.41 1.44.53.6.19 1.15.16 1.59.1.48-.07 1.47-.6 1.68-1.18.21-.58.21-1.08.15-1.18-.06-.1-.23-.17-.48-.29"/></svg> Pesan Cepat via WhatsApp
+        </button>
+        <button class="btn-checkout" id="btn-guest-checkout">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg> Direct Checkout (45 Detik)
+        </button>
+      </div>
+    </aside>
+
+  </div>
+
+  <!-- B2B Lead & Calculator Modal -->
+  <div class="modal-backdrop" id="b2b-modal">
+    <div class="modal-card clickable">
+      <button class="modal-close" id="btn-close-b2b">✕</button>
+      <div class="brand-badge" style="display:inline-block; margin-bottom: 12px;">PARTAM AGENCY SOLUTION</div>
+      <h3 class="modal-heading">Toko Online 3D Interaktif untuk Brand Anda</h3>
+      <p class="modal-sub">Ubah katalog foto datar 2D menjadi ruang pameran 3D interaktif yang membuat pembeli betah berlama-lama, sekaligus menghemat potongan komisi marketplace 18-21%.</p>
+
+      <div class="feature-grid">
+        <div class="feature-item">
+          <h5><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg> Dwell-Time Naik 3.4x</h5>
+          <p>Pelanggan memutar, memperbesar, dan melihat bahan 360°, menaikkan konversi pembelian.</p>
+        </div>
+        <div class="feature-item">
+          <h5><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="8"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg> Bebas Sewa Shopify</h5>
+          <p>Tanpa biaya langganan bulanan mahal ($39/bln). Ringan, cepat, dan di-hosting permanen di VPS.</p>
+        </div>
+        <div class="feature-item">
+          <h5><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> Siap Pakai 48 Jam</h5>
+          <p>Pipeline rendering otomatis Partam Tekno mengubah model pakaian Anda siap rilis dalam 2 hari.</p>
+        </div>
+        <div class="feature-item">
+          <h5><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg> Split Payment 3%</h5>
+          <p>Integrasi pembayaran QRIS & kartu otomatis tanpa pungutan komisi marketplace yang mencekik.</p>
+        </div>
+      </div>
+
+      <!-- Calculator Simulator -->
+      <div class="calc-slider-box">
+        <div class="calc-slider-label">
+          <span>Estimasi Omzet Bulanan Brand:</span>
+          <span style="color: var(--cyan); font-family: 'JetBrains Mono';" id="calc-omzet-text">Rp 50.000.000</span>
+        </div>
+        <input type="range" min="10" max="250" value="50" step="5" class="calc-slider" id="calc-slider">
+        <div class="calc-result-row">
+          <span>Uang Tunai Diselamatkan dari Komisi Marketplace (15% Net):</span>
+          <span class="calc-savings-number" id="calc-savings-val">+Rp 7.500.000 / bln</span>
+        </div>
+      </div>
+
+      <button class="btn-wa" style="width: 100%; font-size: 15px;" id="btn-hubungi-partam">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12.04 2c-5.46 0-9.91 4.45-9.91 9.91 0 1.75.46 3.45 1.32 4.95L2.05 22l5.25-1.38c1.45.79 3.08 1.21 4.74 1.21 5.46 0 9.91-4.45 9.91-9.91 0-2.65-1.03-5.14-2.9-7.01A9.816 9.816 0 0 0 12.04 2m.01 1.67c2.2 0 4.26.86 5.82 2.42a8.225 8.225 0 0 1 2.41 5.83c0 4.54-3.7 8.24-8.24 8.24-1.48 0-2.93-.4-4.2-1.15l-.3-.18-3.12.82.83-3.04-.2-.31a8.196 8.196 0 0 1-1.26-4.38c0-4.54 3.7-8.24 8.24-8.24m4.52 11.66c-.25-.13-1.47-.72-1.7-.81-.23-.08-.39-.13-.56.13-.17.25-.64.81-.79.97-.14.17-.29.19-.54.06-.25-.13-1.06-.39-2.03-1.25-.75-.67-1.26-1.5-1.41-1.75-.14-.25-.02-.39.11-.51.11-.11.25-.29.37-.44.12-.14.17-.25.25-.42.08-.17.04-.31-.02-.44-.06-.13-.56-1.35-.77-1.85-.2-.49-.41-.42-.56-.43h-.48c-.17 0-.44.06-.67.31-.23.25-.88.86-.88 2.1s.9 2.44 1.03 2.61c.13.17 1.77 2.7 4.29 3.79.6.26 1.07.41 1.44.53.6.19 1.15.16 1.59.1.48-.07 1.47-.6 1.68-1.18.21-.58.21-1.08.15-1.18-.06-.1-.23-.17-.48-.29"/></svg> Konsultasi Pasang 3D Showroom via WhatsApp &rarr;
+      </button>
+    </div>
+  </div>
+
+  <!-- SCRIPT ENGINE -->
+  <script>
+    // --- 1. DATA KATALOG PRODUK ---
+    const PRODUCTS = [
+      {
+        id: 'garuda-home',
+        tag: 'TIMNAS INDONESIA • ASEAN CHAMPIONS',
+        title: 'Garuda Pro Home Kit — #6 Pratama Arhan',
+        subtitle: 'Merah Emas Tradisi • Dry-Fit Milano • Woven Crest Garuda',
+        price: 'Rp 249.000',
+        strike: 'Rp 299.000',
+        savings: 'Hemat Rp 50.000',
+        texture: 'jersey_arhan.webp',
+        normal: 'home_normal.webp',
+        num: '06',
+        name: 'ARHAN'
+      },
+      {
+        id: 'partam-cyber',
+        tag: 'PARTAM TEKNO • LIMITED AGENCY DROP',
+        title: 'Obsidian Cyber-Jersey #07 — Special Edition',
+        subtitle: 'Obsidian Black & Electric Cyan • Futuristic Tech Fabric',
+        price: 'Rp 279.000',
+        strike: 'Rp 349.000',
+        savings: 'Hemat Rp 70.000',
+        texture: 'jersey_partam.webp',
+        normal: 'home_normal.webp',
+        num: '07',
+        name: 'PARTAM'
+      },
+      {
+        id: 'garuda-away',
+        tag: 'TIMNAS INDONESIA • OFFICIAL AWAY',
+        title: 'Garuda Away Classic — #23 Justin Hubner',
+        subtitle: 'Pristine White & Gold Chevrons • Double Knit Moisture Control',
+        price: 'Rp 249.000',
+        strike: 'Rp 299.000',
+        savings: 'Hemat Rp 50.000',
+        texture: 'jersey_hubner.webp',
+        normal: 'home_normal.webp',
+        num: '23',
+        name: 'HUBNER'
+      },
+      {
+        id: 'garuda-gk',
+        tag: 'TIMNAS INDONESIA • GOALKEEPER KIT',
+        title: 'Garuda Pro GK Aurora — #1 Maarten Paes',
+        subtitle: 'Turquoise Teal Hexagonal Texture • Padded Elbow Flex',
+        price: 'Rp 259.000',
+        strike: 'Rp 319.000',
+        savings: 'Hemat Rp 60.000',
+        texture: 'jersey_paes.webp',
+        normal: 'home_normal.webp',
+        num: '01',
+        name: 'PAES'
+      }
+    ];
+
+    let activeIndex = 0;
+    let selectedSize = 'M';
+    let soundEnabled = true;
+
+    // --- 2. AUDIO SYNTHESIZER (Web Audio API - Zero Assets) ---
+    const AudioContext = window.AudioContext || window.webkitAudioContext;
+    let audioCtx = null;
+
+    function initAudio() {
+      if (!audioCtx) audioCtx = new AudioContext();
+    }
+
+    function playSound(type) {
+      if (!soundEnabled) return;
+      initAudio();
+      if (audioCtx.state === 'suspended') audioCtx.resume();
+
+      const now = audioCtx.currentTime;
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+
+      if (type === 'click') {
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(800, now);
+        osc.frequency.exponentialRampToValueAtTime(400, now + 0.05);
+        gain.gain.setValueAtTime(0.15, now);
+        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.05);
+        osc.start(now);
+        osc.stop(now + 0.05);
+      } else if (type === 'whoosh') {
+        // Metallic rail slide sound
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(260, now);
+        osc.frequency.exponentialRampToValueAtTime(140, now + 0.15);
+        gain.gain.setValueAtTime(0.1, now);
+        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.15);
+        osc.start(now);
+        osc.stop(now + 0.15);
+      } else if (type === 'clink') {
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(1800, now);
+        osc.frequency.exponentialRampToValueAtTime(1200, now + 0.08);
+        gain.gain.setValueAtTime(0.12, now);
+        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.08);
+        osc.start(now);
+        osc.stop(now + 0.08);
+      }
+    }
+
+    // --- 3. THREE.JS 3D SCENE SETUP ---
+    const canvas = document.querySelector('#webgl-canvas');
+    const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.25;
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x07090e);
+    scene.fog = new THREE.FogExp2(0x07090e, 0.22);
+
+    const camera = new THREE.PerspectiveCamera(40, window.innerWidth / window.innerHeight, 0.1, 50);
+    camera.position.set(0, 0, 2.7);
+    camera.lookAt(0, 0, 0);
+
+    // Studio Lighting
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.65);
+    scene.add(ambientLight);
+
+    const keyLight = new THREE.DirectionalLight(0xfffaed, 1.8);
+    keyLight.position.set(2.5, 4, 3);
+    keyLight.castShadow = true;
+    scene.add(keyLight);
+
+    const cyanRim = new THREE.DirectionalLight(0x00f2fe, 1.4);
+    cyanRim.position.set(-3, 2, -2);
+    scene.add(cyanRim);
+
+    const overheadSpot = new THREE.SpotLight(0xffffff, 2.5, 10, Math.PI / 4, 0.5, 1);
+    overheadSpot.position.set(0, 3.5, 1);
+    overheadSpot.target.position.set(0, 0, 0);
+    scene.add(overheadSpot);
+    scene.add(overheadSpot.target);
+
+    // Reflective Studio Floor
+    const floorGeo = new THREE.PlaneGeometry(30, 30);
+    const floorMat = new THREE.MeshStandardMaterial({
+      color: 0x0a0e17,
+      roughness: 0.35,
+      metalness: 0.4
+    });
+    const floor = new THREE.Mesh(floorGeo, floorMat);
+    floor.rotation.x = -Math.PI / 2;
+    floor.position.y = -1.2;
+    floor.receiveShadow = true;
+    scene.add(floor);
+
+    // Metallic Wardrobe Rail Bar
+    const railGroup = new THREE.Group();
+    const barGeo = new THREE.CylinderGeometry(0.016, 0.016, 12, 32);
+    const barMat = new THREE.MeshStandardMaterial({
+      color: 0xd4af37,
+      metalness: 0.9,
+      roughness: 0.15
+    });
+    const bar = new THREE.Mesh(barGeo, barMat);
+    bar.rotation.z = Math.PI / 2;
+    bar.position.set(-0.5, 0.98, -0.05);
+    railGroup.add(bar);
+    scene.add(railGroup);
+
+    // --- 4. LOAD & POPULATE 3D JERSEYS ---
+    const texLoader = new THREE.TextureLoader();
+    const gltfLoader = new THREE.GLTFLoader();
+    const jerseyItems = [];
+    const RAIL_SPACING = 0.95;
+
+    gltfLoader.load('jersey.glb', (gltf) => {
+      PRODUCTS.forEach((prod, idx) => {
+        const itemRoot = gltf.scene.clone();
+        
+        // Load textures
+        const colorTex = texLoader.load(prod.texture);
+        colorTex.flipY = false;
+        const normTex = texLoader.load(prod.normal);
+        normTex.flipY = false;
+
+        const jerseyMat = new THREE.MeshStandardMaterial({
+          map: colorTex,
+          normalMap: normTex,
+          roughness: 0.52,
+          metalness: 0.08,
+          side: THREE.DoubleSide
+        });
+
+        const hangerMat = new THREE.MeshStandardMaterial({
+          color: 0xd4af37,
+          metalness: 0.88,
+          roughness: 0.18
+        });
+
+        itemRoot.traverse((child) => {
+          if (child.isMesh) {
+            child.castShadow = true;
+            child.receiveShadow = true;
+            if (child.name.toLowerCase().includes('jersey')) {
+              child.material = jerseyMat;
+            } else {
+              child.material = hangerMat;
+            }
+          }
+        });
+
+        // Positioning on rail
+        const isDeskInit = window.innerWidth > 900;
+        const initOffsetX = isDeskInit ? -0.50 : 0;
+        itemRoot.position.set(((idx - activeIndex) * RAIL_SPACING) + initOffsetX, 0.10, 0);
+        itemRoot.scale.set(1.15, 1.15, 1.15);
+        scene.add(itemRoot);
+
+        jerseyItems.push({
+          group: itemRoot,
+          baseX: (idx - activeIndex) * RAIL_SPACING,
+          targetX: (idx - activeIndex) * RAIL_SPACING,
+          targetZ: 0,
+          targetRotY: 0,
+          currentRotY: 0
+        });
+      });
+
+      updateJerseyTargets();
+    });
+
+    // --- 5. INTERACTION & TWEEN ENGINE ---
+    let isDragging = false;
+    let prevMouseX = 0;
+    let prevMouseY = 0;
+    let manualRotY = 0;
+    let autoRotate = true;
+
+    function updateJerseyTargets() {
+      jerseyItems.forEach((item, idx) => {
+        const distFromActive = idx - activeIndex;
+        const isDesk = window.innerWidth > 900;
+        const stageOffsetX = isDesk ? -0.50 : 0;
+        item.targetX = (distFromActive * RAIL_SPACING) + stageOffsetX;
+        
+        if (distFromActive === 0) {
+          // Focused Active Item
+          item.targetZ = 0.45;
+          item.group.scale.set(1.22, 1.22, 1.22);
+        } else {
+          // Side Hanging on Rail
+          item.targetZ = -0.1;
+          item.group.scale.set(1.08, 1.08, 1.08);
+        }
+      });
+
+      // Update UI Drawer
+      const p = PRODUCTS[activeIndex];
+      document.querySelector('#prod-tag').textContent = p.tag;
+      document.querySelector('#prod-title').textContent = p.title;
+      document.querySelector('#prod-sub').textContent = p.subtitle;
+      document.querySelector('#prod-price').textContent = p.price;
+      document.querySelector('#prod-strike').textContent = p.strike;
+      document.querySelector('#hint-text').textContent = `FOKUS: ${p.title.toUpperCase()} (PUTAR 360°)`;
+
+      // Update thumbnails active state
+      document.querySelectorAll('.rail-card').forEach((card, idx) => {
+        card.classList.toggle('active', idx === activeIndex);
+      });
+    }
+
+    // Mouse & Touch Drag on Canvas for 360 Spin
+    window.addEventListener('mousedown', (e) => {
+      if (e.target.id === 'webgl-canvas') {
+        isDragging = true;
+        autoRotate = false;
+        prevMouseX = e.clientX;
+        prevMouseY = e.clientY;
+      }
+    });
+
+    window.addEventListener('mousemove', (e) => {
+      if (isDragging) {
+        const deltaX = e.clientX - prevMouseX;
+        manualRotY += deltaX * 0.009;
+        prevMouseX = e.clientX;
+        prevMouseY = e.clientY;
+      }
+    });
+
+    window.addEventListener('mouseup', () => { isDragging = false; });
+
+    // Touch Support
+    window.addEventListener('touchstart', (e) => {
+      if (e.target.id === 'webgl-canvas' && e.touches.length === 1) {
+        isDragging = true;
+        autoRotate = false;
+        prevMouseX = e.touches[0].clientX;
+        prevMouseY = e.touches[0].clientY;
+      }
+    }, { passive: true });
+
+    window.addEventListener('touchmove', (e) => {
+      if (isDragging && e.touches.length === 1) {
+        const deltaX = e.touches[0].clientX - prevMouseX;
+        manualRotY += deltaX * 0.012;
+        prevMouseX = e.touches[0].clientX;
+        prevMouseY = e.touches[0].clientY;
+      }
+    }, { passive: true });
+
+    window.addEventListener('touchend', () => { isDragging = false; });
+
+    // Next / Prev Item Navigation
+    function goToProduct(idx) {
+      if (idx < 0 || idx >= PRODUCTS.length) return;
+      activeIndex = idx;
+      manualRotY = 0;
+      autoRotate = true;
+      playSound('whoosh');
+      setTimeout(() => playSound('clink'), 160);
+      updateJerseyTargets();
+    }
+
+    document.querySelector('#rail-prev').addEventListener('click', () => {
+      if (activeIndex > 0) goToProduct(activeIndex - 1);
+    });
+    document.querySelector('#rail-next').addEventListener('click', () => {
+      if (activeIndex < PRODUCTS.length - 1) goToProduct(activeIndex + 1);
+    });
+
+    document.querySelector('#btn-reset-view').addEventListener('click', () => {
+      manualRotY = 0;
+      autoRotate = true;
+      playSound('click');
+    });
+
+    // Populate Rail Thumbnails
+    const railContainer = document.querySelector('#rail-container');
+    PRODUCTS.forEach((prod, i) => {
+      const card = document.createElement('div');
+      card.className = `rail-card ${i === 0 ? 'active' : ''}`;
+      card.innerHTML = `
+        <div class="rail-card-num">${prod.num}</div>
+        <div class="rail-card-info">
+          <h4>${prod.name}</h4>
+          <p>${prod.price}</p>
+        </div>
+      `;
+      card.addEventListener('click', () => goToProduct(i));
+      railContainer.appendChild(card);
+    });
+
+    // Size Selection
+    document.querySelectorAll('.size-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.size-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        selectedSize = btn.dataset.size;
+        playSound('click');
+      });
+    });
+
+    // WhatsApp Direct Checkout CTA
+    document.querySelector('#btn-buy-wa').addEventListener('click', () => {
+      playSound('click');
+      const p = PRODUCTS[activeIndex];
+      const message = `Halo Partam Tekno, saya ingin memesan langsung:\n\n*${p.title}*\n- Ukuran: ${selectedSize}\n- Harga: ${p.price}\n\nMohon informasi ongkir dan rekening pembayaran direct checkout. Terima kasih!`;
+      const url = `https://wa.me/6285824571413?text=${encodeURIComponent(message)}`;
+      window.open(url, '_blank');
+    });
+
+    document.querySelector('#btn-guest-checkout').addEventListener('click', () => {
+      playSound('click');
+      alert(`⚡ [Guest Checkout 45 Detik]\nPilihan Anda: ${PRODUCTS[activeIndex].title} (Size ${selectedSize} - ${PRODUCTS[activeIndex].price}).\n\nAlur checkout tanpa registrasi ini langsung terintegrasi dengan Payment Gateway QRIS/BCA otomatis.`);
+    });
+
+    // Audio Toggle
+    document.querySelector('#btn-sound').addEventListener('click', () => {
+      soundEnabled = !soundEnabled;
+      document.querySelector('#sound-icon').textContent = soundEnabled ? '🔊' : '🔇';
+      document.querySelector('#sound-text').textContent = soundEnabled ? 'Suara Aktif' : 'Mute';
+    });
+
+    // B2B Modal
+    const b2bModal = document.querySelector('#b2b-modal');
+    document.querySelector('#btn-open-b2b').addEventListener('click', () => {
+      b2bModal.classList.add('show');
+      playSound('click');
+    });
+    document.querySelector('#btn-close-b2b').addEventListener('click', () => {
+      b2bModal.classList.remove('show');
+      playSound('click');
+    });
+
+    // B2B Calculator Logic
+    const slider = document.querySelector('#calc-slider');
+    const omzetText = document.querySelector('#calc-omzet-text');
+    const savingsVal = document.querySelector('#calc-savings-val');
+
+    slider.addEventListener('input', (e) => {
+      const val = parseInt(e.target.value);
+      const omzetNominal = val * 1000000;
+      omzetText.textContent = `Rp ${omzetNominal.toLocaleString('id-ID')}`;
+      
+      // Net savings = 15% (Marketplace 18% - Direct Engine 3%)
+      const saved = Math.round(omzetNominal * 0.15);
+      savingsVal.textContent = `+Rp ${saved.toLocaleString('id-ID')} / bln`;
+    });
+
+    document.querySelector('#btn-hubungi-partam').addEventListener('click', () => {
+      const omzet = omzetText.textContent;
+      const msg = `Halo Partam Tekno, saya tertarik memasang sistem 3D Showroom & Direct-Engine untuk toko brand saya (estimasi omzet ${omzet}/bulan). Mohon info penawaran implementasi 48 jam.`;
+      window.open(`https://wa.me/6285824571413?text=${encodeURIComponent(msg)}`, '_blank');
+    });
+
+    // --- 6. ANIMATION TICKER LOOP ---
+    function animate() {
+      requestAnimationFrame(animate);
+
+      // Smooth interpolation for jerseys
+      jerseyItems.forEach((item, idx) => {
+        // Interpolate X & Z
+        item.group.position.x += (item.targetX - item.group.position.x) * 0.12;
+        item.group.position.z += (item.targetZ - item.group.position.z) * 0.12;
+
+        if (idx === activeIndex) {
+          // Active focused jersey
+          if (autoRotate && !isDragging) {
+            manualRotY += 0.006;
+          }
+          item.group.rotation.y = manualRotY;
+        } else {
+          // Inactive hanging jerseys: align facing slightly forward or angled
+          const targetAngle = (idx < activeIndex ? 0.35 : -0.35);
+          item.group.rotation.y += (targetAngle - item.group.rotation.y) * 0.1;
+        }
+      });
+
+      renderer.render(scene, camera);
+    }
+    animate();
+
+    // Responsive Resize Handler
+    window.addEventListener('resize', () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.position.set(0, 0, 2.7);
+      camera.lookAt(0, 0, 0);
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+  </script>
+</body>
+</html>
